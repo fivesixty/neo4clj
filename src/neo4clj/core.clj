@@ -195,7 +195,7 @@
   PElement
     (alter! [_ f]
       (do-tx
-          (setProperties! element (f (getProperties element)))))
+        (setProperties! element (f (getProperties element)))))
     (delete! [_]
       (do-tx (.delete element)))
       

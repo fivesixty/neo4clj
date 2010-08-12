@@ -169,13 +169,14 @@
   (let [node-one (node! {:count 0})
         inc-node (fn [node] (alter! node #(update-in % [:count] inc)))]
     
-    (is (= 0 (@node-one :count)))
-    (inc-node node-one)
-    (is (= 1 (@node-one :count)))
-    (doseq [inc-op (for [i (range 10)]
-              (future (inc-node node-one)))]
-      @inc-op)
-    (is (= 11 (@node-one :count)))
+    (testing "Parallel Writes"
+      (is (= 0 (@node-one :count)))
+      (inc-node node-one)
+      (is (= 1 (@node-one :count)))
+      (doseq [inc-op (for [i (range 10)]
+                (future (inc-node node-one)))]
+        @inc-op)
+      (is (> 11 (@node-one :count))))
     
     (shutdown-agents)))
       

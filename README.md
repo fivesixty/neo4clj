@@ -42,6 +42,44 @@ Database can be started/stopped using (start [path]) (stop), or using (with-neo 
         (delete! rel-one) (delete! rel-two)     ; Relationships deleted before nodes.
         (delete! node-one) (delete! node-two)))
         
+## Transactions
+
+Operations with side-effects (node!, relate!, alter!, delete!, ..) are automatically wrapped into small transactions. They can be grouped into larger transactions with (do-tx [& body]). Uncaught exceptions within the transaction will cause the transaction to be aborted. A transaction can also be aborted using (failure).
+
+Deleting a node without deleting its relationships will cause a transaction to fail.
+
+    (with-neo "test"
+      (let [test-node (node! {:message "Consistent"})]
+        (do-tx
+          (alter! test-node #(assoc % :message "Inconsistent"))
+          (failure))
+        (= "Consistent" (@test-node :message))
+        
+        (delete! test-node)))
+        
+Transactions are ACID and last-one-out-wins for concurrent writes to the same node. Being worked on are helpers to create blocking transactions where required (when protection against lost writes are needed).
+
+## Classed Nodes
+
+Included is basic support for classed nodes and indexes, whereby the Class of a node will determine which indices are kept. It also allows for a property with the same name to be in different indices if the classes are different.
+
+    (with-neo "test"
+      (register-classes
+        :Person [:name :age]
+        :Animal [:name :species])
+        
+      (let [chris  (node! {:name "Chris" :age 21})
+            domino (node! {:name "Domino" :species "cat"})]
+            
+        (= chris  (first (find-nodes :Person :name "Chris")))
+        (= domino (first (find-nodes :Animal :name "Domino")))
+        (alter! chris #(assoc % :name "Domino"))
+        (= chris  (first (find-nodes :Person :name "Domino")))
+        (= 1      (count (find-nodes :Person :name "Domino")))
+        
+        (delete! chris)
+        (delete! domino)))
+        
 ## License
 
 Copyright (C) 2010 Chris Spencer
