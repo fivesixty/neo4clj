@@ -228,25 +228,26 @@
     (reify TransactionEventHandler
       ~@body)))
       
-(defn register-indices [indices]
-  (transaction-handler
-    (afterCommit [_ data state] nil)
-    (beforeCommit [_ data]
-      (let [remnodes (into #{} (map (fn [^Node node] (.getId node)) (.deletedNodes data)))]
-        (doseq [^PropertyEntry removal (.removedNodeProperties data)]
-          (let [entity ^Node (.entity removal)
-                key (.key removal)]
+(defn register-indices [& args]
+  (let [indices (into #{} (map name args))]
+    (transaction-handler
+      (afterCommit [_ data state] nil)
+      (beforeCommit [_ data]
+        (let [remnodes (into #{} (map (fn [^Node node] (.getId node)) (.deletedNodes data)))]
+          (doseq [^PropertyEntry removal (.removedNodeProperties data)]
+            (let [entity ^Node (.entity removal)
+                  key (.key removal)]
+              (when (contains? indices key)
+                (.removeIndex *lucene* entity key)))))
+        (doseq [^PropertyEntry assign (.assignedNodeProperties data)]
+          (let [entity ^Node (.entity assign)
+                key (.key assign)
+                previous-value (.previouslyCommitedValue assign)]
             (when (contains? indices key)
-              (.removeIndex *lucene* entity key)))))
-      (doseq [^PropertyEntry assign (.assignedNodeProperties data)]
-        (let [entity ^Node (.entity assign)
-              key (.key assign)
-              previous-value (.previouslyCommitedValue assign)]
-          (when (contains? indices key)
-            (when previous-value
-              (.removeIndex *lucene* entity key previous-value))
-            (.index *lucene* entity key (.value assign))))))
-    (afterRollback [_ data state] nil)))
+              (when previous-value
+                (.removeIndex *lucene* entity key previous-value))
+              (.index *lucene* entity key (.value assign))))))
+      (afterRollback [_ data state] nil))))
     
 (defn- deleted-node-classes [deleted-nodes removed-properties]
   (let [removed-nodes (into {} (map (fn [^Node node] [node {}]) deleted-nodes))]

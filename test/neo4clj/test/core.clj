@@ -16,7 +16,7 @@
     
 (deftest Homogeneous-Nodes
 
-  (register-indices #{"message"})
+  (register-indices :message)
   
   (let [first-node (node! {:message "FirstNode"})
         second-node (node! {:message "SecondNode"})
