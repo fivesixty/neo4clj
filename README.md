@@ -68,8 +68,8 @@ Included is basic support for classed nodes and indexes, whereby the Class of a 
         :Person [:name :age]
         :Animal [:name :species])
         
-      (let [chris  (node! {:name "Chris" :age 21})
-            domino (node! {:name "Domino" :species "cat"})]
+      (let [chris  (node! :Person {:name "Chris" :age 21})
+            domino (node! :Animal {:name "Domino" :species "cat"})]
             
         (= chris  (first (find-nodes :Person :name "Chris")))
         (= domino (first (find-nodes :Animal :name "Domino")))
@@ -79,6 +79,31 @@ Included is basic support for classed nodes and indexes, whereby the Class of a 
         
         (delete! chris)
         (delete! domino)))
+        
+## Traversals
+
+Traversals are helper methods around the Traversals framework which is new in Neo4j 1.1. Traversal descriptions are immutable and so defaults can be defined and then specialised for certain traversals.
+
+    (->> (new-traversal)         ; Generate a new traversal
+         (along :type direction) ; Restrict traversal to type & direction of relationships.
+                                 ; Multiple along statements commute.
+         (where predicate)       ; Sets the filter for which paths to return.
+         (prune predicate)       ; Sets when to stop traversing a path.
+         (depth-first)           ; Partner is breadth-first.
+         (get-nodes-from node))  ; Executes the traversal starting at node, and returns
+                                 ; a sequence of node results.
+                                 
+    (def single-level-traverse   ; Included as a useful base traversal definition.
+      (->> (new-traversal)
+           (depth-first)
+           (max-depth 1)         ; Helper for a prune on path length == 1
+           (all-but-start)))     ; Helper for a where on startNode != endNode
+           
+    ; Included function for finding neighbours of a node by single type and direction.
+    (defn related-via-label [node type direction]
+      (->> single-level-traverse
+           (along type direction)
+           (get-nodes-from node)))
         
 ## License
 
