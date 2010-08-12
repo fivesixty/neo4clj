@@ -1,5 +1,3 @@
-(set! *warn-on-reflection* true)
-
 (ns neo4clj.core
   (:import (org.neo4j.graphdb Direction
                               Node
@@ -96,8 +94,8 @@
      
 ; Types
 
-(deftype Neo-Node [^Node node])     
-(deftype Neo-Relationship [^Relationship relationship])
+(deftype Neo-Node [^Node element])     
+(deftype Neo-Relationship [^Relationship element])
 (deftype Neo-RelationshipType [n]
   RelationshipType
     (name [_] (name n)))
@@ -144,7 +142,7 @@
 (defn prune [f ^TraversalDescription traversal]
   (.prune traversal (pruner f)))
   
-(defn get-nodes-from [node ^TraversalDescription traversal]
+(defn get-nodes-from [^Neo-Node node ^TraversalDescription traversal]
   (map #(Neo-Node. %) (.nodes (.traverse traversal (.element node)))))
   
 (defn along-mult [traversal & relations]
@@ -153,7 +151,7 @@
     traversal
     (partition 2 relations)))
     
-(defn along [type direction traversal]
+(defn along [type direction ^TraversalDescription traversal]
   (.relationships traversal (Neo-RelationshipType. type) direction))
 
 (defn new-traversal []

@@ -2,6 +2,13 @@
 
 Comprehensive bindings and utilities for using Neo4j from Clojure.
 
+## Still to come
+
+* Named relationships
+* Blocking transactions
+* STM-esque transactions (harder)
+* More comprehensive tests
+
 ## Installation
 
 Still under rapid development, so has not been added to clojars just yet.
@@ -83,6 +90,8 @@ Included is basic support for classed nodes and indexes, whereby the Class of a 
 ## Traversals
 
 Traversals are helper methods around the Traversals framework which is new in Neo4j 1.1. Traversal descriptions are immutable and so defaults can be defined and then specialised for certain traversals.
+
+Syntax for custom where and prune predicates currently depends on knowledge of the Neo4j Node, Relationship and Path Interfaces.
 
     (->> (new-traversal)         ; Generate a new traversal
          (along :type direction) ; Restrict traversal to type & direction of relationships.
