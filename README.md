@@ -114,6 +114,24 @@ Syntax for custom where and prune predicates currently depends on knowledge of t
            (along type direction)
            (get-nodes-from node)))
         
+## Named Relations
+
+Named relations allow reverse relations to be named, and shortcut syntax to be used. When creating relations, the outgoing relation name should be used (in this example, :knows). Modifying relations like sequences is planned for the future, eg. (conj! (node :knows) new-node)
+
+    (register-relations
+      [:friends]
+      [:knows :known-by])
+      
+    (related node :knows outgoing)
+    (node :knows)
+    
+    (related node :knows incoming)
+    (node :known-by)
+    
+    (related node :friends)
+    (related node :friends both)
+    (node :friends)
+
 ## License
 
 Copyright (C) 2010 Chris Spencer
