@@ -14,7 +14,7 @@
   
 (use-fixtures :once database-fixture)
     
-(deftest Homogeneous-Nodes
+(deftest HomogeneousNodes
 
   (register-indices :message)
   
@@ -71,7 +71,7 @@
       (delete! third-node)
       (is (thrown? Exception @second-node)))))
       
-(deftest Heterogeneous-Nodes
+(deftest HeterogeneousNodes
 
   (register-classes
     :Person [:name :age]
@@ -178,9 +178,11 @@
         @inc-op)
       (is (> 11 (@node-one :count))))
     
+    (delete! node-one)
+    
     (shutdown-agents)))
       
-(deftest Named-Relations
+(deftest NamedRelations
   (register-relations
     [:friends]
     [:requested-friends :friend-requests]
@@ -193,7 +195,9 @@
     (testing "Named reversed relations"
       (are [x y] (= x y)
         (list jim-node) (chris-node :requested-friends)
-        (list chris-node) (jim-node :friend-requests)))
+        '() (jim-node :requested-friends)
+        (list chris-node) (jim-node :friend-requests)
+        '() (chris-node :friend-requests)))
         
     (testing "Homogeneous relations"
       (relate! chris-node :friends jim-node)

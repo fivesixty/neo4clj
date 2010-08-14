@@ -4,10 +4,12 @@ Comprehensive bindings and utilities for using Neo4j from Clojure.
 
 ## Still to come
 
-* Named relationships
-* Blocking transactions
+* Modifiable related collections
+* Better wrapping coverage of traversals
+* Traversals micro-language?
+* Blocking transactions (possible)
 * STM-esque transactions (harder)
-* More comprehensive tests
+* More comprehensive tests (of course)
 
 ## Installation
 
@@ -64,7 +66,7 @@ Deleting a node without deleting its relationships will cause a transaction to f
         
         (delete! test-node)))
         
-Transactions are ACID and last-one-out-wins for concurrent writes to the same node. Being worked on are helpers to create blocking transactions where required (when protection against lost writes are needed).
+Transactions are ACID and last-one-out-wins for concurrent writes to a nodes properties.
 
 ## Classed Nodes
 
@@ -122,12 +124,18 @@ Named relations allow reverse relations to be named, and shortcut syntax to be u
       [:friends]          ; Ignored internally, but allowed for clarity. 
       [:knows :known-by])
       
+    (relate! node :knows other-node)
+    ; Equilavent
     (related node :knows outgoing)
     (node :knows)
     
+    (relate! other-node :knows node)
+    ; Equilavent
     (related node :knows incoming)
     (node :known-by)
     
+    (relate! node :friends other-node)
+    ; Equilavent
     (related node :friends)
     (related node :friends both)
     (node :friends)
