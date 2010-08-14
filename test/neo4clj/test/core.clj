@@ -32,27 +32,27 @@
                                          
     (testing "Traversal"
       (are [x y] (= x y)
-        1 (count (related first-node :knows))
-        0 (count (related first-node :some-label)))
-        0 (count (related first-node :knows incoming))
-        1 (count (related first-node :knows outgoing))
-        1 (count (related second-node :knows incoming))
-        0 (count (related third-node :knows)))
+        (list second-node)  (related first-node :knows)
+        '()                 (related first-node :some-label)
+        '()                 (related first-node :knows incoming)
+        (list second-node)  (related first-node :knows outgoing)
+        (list first-node)   (related second-node :knows incoming)
+        (list second-node)  (related third-node :knows)))
                        
     (testing "Searching"
       (let [search (find-nodes :message "FirstNode")]
         (are [x y] (= x y)
           1 (count search)
-          first-node (first search)
-          0 (count (find-nodes :message "ARelation"))
-          0 (count (find-nodes :not-an-index "FirstNode")))))
+          (list first-node) search
+          '() (find-nodes :message "ARelation")
+          '() (find-nodes :not-an-index "FirstNode"))))
           
     (testing "Altered Properties, Indices"
       (alter! first-node #(assoc % :message "NewFirstNode"))
       (are [x y] (= x y)
         "NewFirstNode" (:message @first-node)
-        0 (count (find-nodes :message "FirstNode"))
-        1 (count (find-nodes :message "NewFirstNode"))))
+        '() (find-nodes :message "FirstNode")
+        (list first-node) (find-nodes :message "NewFirstNode")))
           
     (testing "Invalid Transactions"
       (are [x] (thrown? Exception x)
@@ -180,9 +180,23 @@
     
     (shutdown-agents)))
       
-#_(deftest Named-Relations
-      
+(deftest Named-Relations
   (register-relations
     [:friends]
     [:requested-friends :friend-requests]
-    [:owns :owned-by]))
+    [:owns :owned-by])
+    
+  (let [chris-node (node! {:name "Chris"})
+        jim-node   (node! {:name "Jim"})
+        relation   (relate! chris-node :requested-friends jim-node)]
+        
+    (testing "Named reversed relations"
+      (are [x y] (= x y)
+        (list jim-node) (chris-node :requested-friends)
+        (list chris-node) (jim-node :friend-requests)))
+        
+    (testing "Homogeneous relations"
+      (relate! chris-node :friends jim-node)
+      (are [x y] (= x y)
+        (list jim-node) (chris-node :friends)
+        (list chris-node) (jim-node :friends)))))

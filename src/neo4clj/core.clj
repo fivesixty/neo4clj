@@ -23,7 +23,8 @@
         
 (def ^EmbeddedGraphDatabase *neo* nil)
 (def ^LuceneFulltextIndexService *lucene* nil)
-        
+(def *named-relations* {})
+
 (defn start
   "Start a neo4j instance from the given database path, and bind to *neo*"
   [path]
@@ -198,8 +199,10 @@
       (do-tx (.delete element)))
       
   clojure.lang.IFn
-    (invoke [this type] (related this type))
-    (invoke [this type direction] (related this type direction)))
+    (invoke [this type]
+      (if (contains? *named-relations* type)
+        (related this ((*named-relations* type) :type) ((*named-relations* type) :direction))
+        (related this type both))))
     
 ; Relationship
     
@@ -283,9 +286,23 @@
     (reduce
       (fn [classes [class-name indices]]
         (assoc classes (name class-name)
-          (into #{} (map name indices))))
-      {}
-      (partition 2 body))))
+        (into #{} (map name indices))))
+        {}
+        (partition 2 body))))
+    
+; Relationships
+
+(defn register-relations [& relations]
+  (alter-var-root #'*named-relations*
+    (fn [named-relations]
+      (reduce
+        (fn [relations [outgoing incoming]]
+          (if incoming
+            (merge relations {outgoing {:direction Direction/OUTGOING :type outgoing}
+                              incoming {:direction Direction/INCOMING :type outgoing}})
+            relations))
+        named-relations
+        relations))))
     
 ; Search
 
