@@ -14,7 +14,7 @@
   
 (use-fixtures :once database-fixture)
     
-(deftest HomogeneousNodes
+(deftest Homogeneous-Nodes
 
   (register-indices :message)
   
@@ -71,7 +71,7 @@
       (delete! third-node)
       (is (thrown? Exception @second-node)))))
       
-(deftest HeterogeneousNodes
+(deftest Heterogeneous-Nodes
 
   (register-classes
     :Person [:name :age]
@@ -182,7 +182,7 @@
     
     (shutdown-agents)))
       
-(deftest NamedRelations
+(deftest Named-Relations
   (register-relations
     [:friends]
     [:requested-friends :friend-requests]
@@ -204,3 +204,11 @@
       (are [x y] (= x y)
         (list jim-node) (chris-node :friends)
         (list chris-node) (jim-node :friends)))))
+        
+        
+(deftest Array-Properties
+  (let [node-one (node! {:arr [1 2 3]
+                         :strs '("one" "two" "three")})]
+    (are [x y] (= x y)
+      [1 2 3] (@node-one :arr)
+      ["one" "two" "three"] (@node-one :strs))))

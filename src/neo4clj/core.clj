@@ -101,15 +101,29 @@
   RelationshipType
     (name [_] (name n)))
      
+(defn- seq-to-array [sequence]
+  (if (number? (first sequence))
+    (into-array java.lang.Double (map double sequence))
+    (into-array java.lang.String (map str sequence))))
+     
 (extend-type PropertyContainer
   PropertyWrap
   (setProperties! [this properties]
     (doseq [[key value] properties]
-      (.setProperty this (name key) value))
+      (if (or (seq? value) (vector? value))
+        (.setProperty this (name key) (seq-to-array value))
+        (.setProperty this (name key) value)))
     this)
   (getProperties [this]
     (let [ks (.getPropertyKeys this)]
-      (into {} (map (fn [k] [(keyword k) (.getProperty this k)]) ks)))))
+      (into {}
+        (map
+          (fn [k]
+            (let [prop (.getProperty this k)]
+              (if (or (string? prop) (number? prop))
+                [(keyword k) prop]
+                [(keyword k) (vec prop)])))
+          ks)))))
      
 ; Traversals
 
