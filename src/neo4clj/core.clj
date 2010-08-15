@@ -28,7 +28,7 @@
 (def *classes* {})
 (def *indices* #{})
 
-(defn attach-index-handler [])
+(defn- attach-index-handler [])
 
 (defn start
   "Start a neo4j instance from the given database path, and bind to *neo*"
