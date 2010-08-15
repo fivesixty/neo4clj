@@ -139,6 +139,16 @@ Named relations allow reverse relations to be named, and shortcut syntax to be u
     (related node :friends)
     (related node :friends both)
     (node :friends)
+    
+## Array Properties
+
+Basic support for array properties is provided, no support for indices.
+
+    (let [node-one (node! {:arr [1 2 3]
+                           :strs '("one" "two" "three")})]
+      (are [x y] (= x y)
+        [1 2 3] (@node-one :arr)
+        ["one" "two" "three"] (@node-one :strs)))
 
 ## License
 
