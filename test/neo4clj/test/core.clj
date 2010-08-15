@@ -37,6 +37,7 @@
         '()                 (related first-node :knows incoming)
         (list second-node)  (related first-node :knows outgoing)
         (list first-node)   (related second-node :knows incoming)
+        (list first-node third-node) (related second-node :knows)
         (list second-node)  (related third-node :knows)))
                        
     (testing "Searching"
@@ -83,10 +84,10 @@
     
     (testing "Indices"
       (are [x y] (= x y)
-        1 (count (find-nodes :Person :name "Chris"))
-        2 (count (find-nodes :Person :age 21))
-        0 (count (find-nodes :Person :name "Domino"))
-        1 (count (find-nodes :Animal :name "Domino"))))
+        [chris-node] (find-nodes :Person :name "Chris")
+        [chris-node jim-node] (find-nodes :Person :age 21)
+        [] (find-nodes :Person :name "Domino")
+        [domino-node] (find-nodes :Animal :name "Domino")))
     
     (testing "Updating Indicies"
       (alter! chris-node #(assoc % :age 22))
@@ -97,12 +98,12 @@
     
     (testing "Deleting Indices"
       (delete! chris-node)
-      (is (= 0 (count (find-nodes :Person :name "Chris"))))
-      (is (= 1 (count (find-nodes :Person :age 21))))
+      (is (= [] (find-nodes :Person :name "Chris")))
+      (is (= [jim-node] (find-nodes :Person :age 21)))
       (delete! jim-node)
-      (is (= 0 (count (find-nodes :Person :age 21))))
+      (is (= [] (find-nodes :Person :age 21)))
       (delete! domino-node)
-      (is (= 0 (count (find-nodes :Animal :name "Domino")))))))
+      (is (= [] (find-nodes :Animal :name "Domino"))))))
       
 (deftest Traversals
 
