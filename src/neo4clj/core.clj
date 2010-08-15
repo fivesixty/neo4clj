@@ -107,10 +107,44 @@
   RelationshipType
     (name [_] (name n)))
      
+(defn best-array-type [arr]
+  (reduce
+    (fn [guess el]
+      (let [next-guess
+        (cond
+          ; Booleans
+          (and (nil? guess) (= java.lang.Boolean (type el))) java.lang.Boolean
+          (and (= java.lang.Boolean guess) (= java.lang.Boolean (type el))) java.lang.Boolean
+          
+          ; Strings
+          (and (nil? guess) (string? el)) java.lang.String
+          (and (= guess java.lang.String) (string? el)) java.lang.String
+          
+          ; Longs, upgradable to Doubles.
+          (and (nil? guess) (integer? el)) java.lang.Long
+          (and (= guess java.lang.Long) (integer? el)) java.lang.Long
+          (and (= guess java.lang.Long) (number? el)) java.lang.Double
+          
+          ; Doubles
+          (and (nil? guess) (number? el)) java.lang.Double
+          (and (= guess java.lang.Double) (and (number? el))) java.lang.Double
+          )]
+      (if next-guess
+        next-guess
+        (throw (Exception. "Invalid type mix.")))))
+    nil
+    arr))
+     
+(defn type-convert [type]
+  (cond
+    (= type java.lang.Double) double
+    (= type java.lang.Long) long
+    (= type java.lang.Boolean) boolean
+    (= type java.lang.String) str))
+     
 (defn- seq-to-array [sequence]
-  (if (number? (first sequence))
-    (into-array java.lang.Double (map double sequence))
-    (into-array java.lang.String (map str sequence))))
+  (let [arr-type (best-array-type sequence)]
+    (into-array arr-type (map (type-convert arr-type) sequence))))
      
 (extend-type PropertyContainer
   PropertyWrap

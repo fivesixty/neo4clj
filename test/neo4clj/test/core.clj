@@ -208,8 +208,21 @@
         
         
 (deftest Array-Properties
-  (let [node-one (node! {:arr [1 2 3]
+  
+  (testing "Array type detection"
+    (are [x y] (= x y)
+      java.lang.Long (best-array-type [1 2 3])
+      java.lang.Double (best-array-type [1.2 3])
+      java.lang.Boolean (best-array-type [false true false])
+      java.lang.String (best-array-type ["one" "two"]))
+      
+    (are [x] (thrown? Exception x)
+      (best-array-type [true 1 2])
+      (best-array-type ["one" 6])))
+  
+  (let [node-one (node! {:arr [1 2 3.2]
                          :strs '("one" "two" "three")})]
     (are [x y] (= x y)
-      [1 2 3] (@node-one :arr)
-      ["one" "two" "three"] (@node-one :strs))))
+      [1 2 3.2] (@node-one :arr)
+      ["one" "two" "three"] (@node-one :strs)
+      java.lang.Double (type (first (@node-one :arr))))))
