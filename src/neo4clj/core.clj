@@ -15,7 +15,8 @@
                                   TraversalBranch
                                   PruneEvaluator)
      (org.neo4j.graphdb.event TransactionEventHandler
-                              PropertyEntry)
+                              PropertyEntry
+                              TransactionData)
      (org.neo4j.index.lucene LuceneFulltextIndexService)
      (org.neo4j.helpers Predicate)))
      
@@ -28,7 +29,6 @@
 (def *indices* #{})
 
 (defn attach-index-handler [])
-(defn attach-classed-index-handler [])
 
 (defn start
   "Start a neo4j instance from the given database path, and bind to *neo*"
@@ -36,8 +36,7 @@
   (do
     (alter-var-root #'*neo* (fn [_] (EmbeddedGraphDatabase. path)))
     (alter-var-root #'*lucene* (fn [_] (LuceneFulltextIndexService. *neo*)))
-    (attach-index-handler)
-    (attach-classed-index-handler)))
+    (attach-index-handler)))
   
 (defn stop
   "Stop the running neo4j instance and unbind *neo*"
@@ -252,26 +251,6 @@
       
 (defn register-indices [& args]
   (alter-var-root #'*indices* #(into % (map name args))))
-  
-(defn attach-index-handler []
-  (transaction-handler
-    (afterCommit [_ data state] nil)
-    (beforeCommit [_ data]
-      (let [remnodes (into #{} (map (fn [^Node node] (.getId node)) (.deletedNodes data)))]
-        (doseq [^PropertyEntry removal (.removedNodeProperties data)]
-          (let [entity ^Node (.entity removal)
-                key (.key removal)]
-            (when (contains? *indices* key)
-              (.removeIndex *lucene* entity key)))))
-      (doseq [^PropertyEntry assign (.assignedNodeProperties data)]
-        (let [entity ^Node (.entity assign)
-              key (.key assign)
-              previous-value (.previouslyCommitedValue assign)]
-          (when (contains? *indices* key)
-            (when previous-value
-              (.removeIndex *lucene* entity key previous-value))
-            (.index *lucene* entity key (.value assign))))))
-    (afterRollback [_ data state] nil)))
     
 (defn- deleted-node-classes [deleted-nodes removed-properties]
   (let [removed-nodes (into {} (map (fn [^Node node] [node {}]) deleted-nodes))]
@@ -281,29 +260,44 @@
       removed-nodes
       (filter #(contains? removed-nodes (.entity ^PropertyEntry %)) removed-properties))))
 
-(defn attach-classed-index-handler []
-  (letfn [(entity-class [^Node entity]
-            (if (.hasProperty entity "__CLASS") (.getProperty entity "__CLASS")))]
-    (transaction-handler
-      (afterCommit [_ data state] nil)
-      (beforeCommit [_ data]
-        (let [removed-nodes (deleted-node-classes (.deletedNodes data) (.removedNodeProperties data))]
-          (doseq [^PropertyEntry removal (.removedNodeProperties data)]
-            (let [entity ^Node (.entity removal)
-                  key (.key removal)
-                  class (if (removed-nodes entity) ((removed-nodes entity) "__CLASS") (entity-class entity))]
-              (when (and class (contains? (*classes* class) key))
-                (.removeIndex *lucene* entity (str class "__" key)))))
-          (doseq [^PropertyEntry assign (.assignedNodeProperties data)]
-            (let [entity ^Node (.entity assign)
-                  key (.key assign)
-                  class (entity-class entity)
-                  previous-value (.previouslyCommitedValue assign)]
-              (when (and class (contains? (*classes* class) key))
-                (when previous-value
-                  (.removeIndex *lucene* entity (str class "__" key) previous-value))
-                (.index *lucene* entity (str class "__" key) (.value assign)))))))
-      (afterRollback [_ data state] nil))))
+(defn- entity-class [^Node entity]
+  (if (.hasProperty entity "__CLASS") (.getProperty entity "__CLASS")))
+
+(defn- update-index [entity key value prev-value]
+  (when prev-value
+    (.removeIndex *lucene* entity key prev-value))
+  (.index *lucene* entity key value))
+(defn- remove-index [entity key]
+  (.removeIndex *lucene* entity key))
+  
+(defn- class-index? [class key]
+  (and class (contains? (*classes* class) key)))
+
+(defn- index-handler [^TransactionData data]
+  (let [removed-nodes (deleted-node-classes (.deletedNodes data) (.removedNodeProperties data))]
+    (doseq [^PropertyEntry removal (.removedNodeProperties data)]
+      (let [entity ^Node (.entity removal)
+            key (.key removal)
+            class (if (removed-nodes entity) ((removed-nodes entity) "__CLASS") (entity-class entity))]
+        (cond
+          (contains? *indices* key) (remove-index entity key)
+          (class-index? class key)  (remove-index entity (str class "__" key)))))
+    (doseq [^PropertyEntry assign (.assignedNodeProperties data)]
+      (let [entity ^Node (.entity assign)
+            key (.key assign)
+            class (entity-class entity)
+            class-key (str class "__" key)
+            value (.value assign)
+            previous-value (.previouslyCommitedValue assign)]
+        (cond
+          (contains? *indices* key) (update-index entity key value previous-value))
+          (class-index? class key)  (update-index entity class-key value previous-value)))))
+
+(defn- attach-index-handler []
+  (transaction-handler
+    (afterCommit [_ data state] nil)
+    (beforeCommit [_ data] (index-handler data))
+    (afterRollback [_ data state] nil)))
 
 (defn register-classes [& body]
   (alter-var-root #'*classes*
