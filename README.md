@@ -17,7 +17,7 @@ Still under rapid development, so has not been added to clojars just yet.
 
 ## Nodes and index
 
-Database can be started/stopped using (start [path]) (stop), or using (with-neo [path & body]) which wraps the contents in a try, do, finally.
+Database can be started/stopped using `(start [path]) (stop)`, or using `(with-neo [path & body])` which wraps the contents in a try, do, finally.
 
     (with-neo "test"
     
@@ -53,7 +53,7 @@ Database can be started/stopped using (start [path]) (stop), or using (with-neo 
         
 ## Transactions
 
-Operations with side-effects (node!, relate!, alter!, delete!, ..) are automatically wrapped into small transactions. They can be grouped into larger transactions with (do-tx [& body]). Uncaught exceptions within the transaction will cause the transaction to be aborted. A transaction can also be aborted using (failure).
+Operations with side-effects `(node!, relate!, alter!, delete!, ..)` are automatically wrapped into small transactions. They can be grouped into larger transactions with `(do-tx [& body])`. Uncaught exceptions within the transaction will cause the transaction to be aborted. A transaction can also be aborted using `(failure)`.
 
 Deleting a node without deleting its relationships will cause a transaction to fail.
 
@@ -118,7 +118,7 @@ Syntax for custom where and prune predicates currently depends on knowledge of t
         
 ## Named Relations
 
-Named relations allow reverse relations to be named, and shortcut syntax to be used. When creating relations, the outgoing relation name should be used (in this example, :knows). Modifying relations like sequences is planned for the future, eg. (conj! (node :knows) new-node)
+Named relations allow reverse relations to be named, and shortcut syntax to be used. When creating relations, the outgoing relation name should be used (in this example, :knows). Modifying relations like sequences is planned for the future, eg. `(conj! (node :knows) new-node)`
 
     (register-relations
       [:friends]          ; Ignored internally, but allowed for clarity. 
