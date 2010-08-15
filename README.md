@@ -2,6 +2,12 @@
 
 Comprehensive bindings and utilities for using Neo4j from Clojure.
 
+## Known issues
+
+* Fix reflection issues with prune and where predicates.
+* Undefined index behaviour on array properties.
+* Array properties only stored as either double or string.
+
 ## Still to come
 
 * Modifiable related collections

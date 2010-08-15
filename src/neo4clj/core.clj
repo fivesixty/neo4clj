@@ -136,13 +136,6 @@
 (def both Direction/BOTH)
 (def incoming Direction/INCOMING)
 (def outgoing Direction/OUTGOING)
-
-(defn ^TraversalDescription max-depth [n ^TraversalDescription traversal]
-  (.prune traversal (Traversal/pruneAfterDepth n)))
-(defn ^TraversalDescription depth-first [^TraversalDescription traversal]
-  (.depthFirst traversal))
-(defn ^TraversalDescription breadth-first [^TraversalDescription traversal]
-  (.breadthFirst traversal))
   
 (defn predicate [f]
   (reify
@@ -153,15 +146,15 @@
   (reify
     PruneEvaluator
       (^boolean pruneAfter [_ ^Path path] (f path))))
-      
-(defn all-but-start [^TraversalDescription traversal]
-  (.filter traversal (Traversal/returnAllButStartNode)))
   
 (defn where [f ^TraversalDescription traversal]
   (.filter traversal (predicate f)))
   
 (defn prune [f ^TraversalDescription traversal]
   (.prune traversal (pruner f)))
+  
+(defn all-but-start [^TraversalDescription traversal]
+  (where #(not= (.startNode %) (.endNode %)) traversal))
   
 (defn get-nodes-from [^Neo-Node node ^TraversalDescription traversal]
   (map #(Neo-Node. %) (.nodes (.traverse traversal (.element node)))))
@@ -174,6 +167,13 @@
     
 (defn along [type direction ^TraversalDescription traversal]
   (.relationships traversal (Neo-RelationshipType. type) direction))
+
+(defn ^TraversalDescription max-depth [n ^TraversalDescription traversal]
+  (prune #(= (.length %) n) traversal))
+(defn ^TraversalDescription depth-first [^TraversalDescription traversal]
+  (.depthFirst traversal))
+(defn ^TraversalDescription breadth-first [^TraversalDescription traversal]
+  (.breadthFirst traversal))
 
 (defn new-traversal []
   (Traversal/description))
@@ -308,7 +308,7 @@
         %
         (partition 2 body))))
     
-; Relationships
+; Named Relationships
 
 (defn register-relations [& relations]
   (alter-var-root #'*named-relations*
