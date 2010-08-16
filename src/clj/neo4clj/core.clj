@@ -109,44 +109,45 @@
   RelationshipType
     (name [_] (name n)))
      
+(defn boolean? [o]
+  (= java.lang.Boolean (type o)))
+     
+(defn- best-object-type
+  "Returns best object type for storage of given object, or nil if invalid."
+  [o]
+  (cond
+    (boolean? o) java.lang.Boolean
+    (string? o)  java.lang.String
+    (integer? o) java.lang.Long
+    (number? o)  java.lang.Double))
+    
+(defn- type-convert
+  "Returns a type conversion function for the given Java type."
+  [type]
+  (cond
+    (= type java.lang.Boolean) boolean
+    (= type java.lang.String)  str
+    (= type java.lang.Long)    long
+    (= type java.lang.Double)  double))
+     
 (defn best-array-type
   "Accepts a sequence and returns a Java type for that sequence, or otherwise throws an exception if a valid type cannot be found."
   [arr]
   (reduce
     (fn [guess el]
-      (let [next-guess
-        (cond
-          ; Booleans
-          (and (nil? guess) (= java.lang.Boolean (type el))) java.lang.Boolean
-          (and (= java.lang.Boolean guess) (= java.lang.Boolean (type el))) java.lang.Boolean
-          
-          ; Strings
-          (and (nil? guess) (string? el)) java.lang.String
-          (and (= guess java.lang.String) (string? el)) java.lang.String
-          
-          ; Longs, upgradable to Doubles.
-          (and (nil? guess) (integer? el)) java.lang.Long
-          (and (= guess java.lang.Long) (integer? el)) java.lang.Long
-          (and (= guess java.lang.Long) (number? el)) java.lang.Double
-          
-          ; Doubles
-          (and (nil? guess) (number? el)) java.lang.Double
-          (and (= guess java.lang.Double) (and (number? el))) java.lang.Double
-          )]
+      (let [el-type (best-object-type el)
+            next-guess  (cond
+                          (= guess el-type) guess
+                          (and (or (= guess java.lang.Long)
+                                   (= guess java.lang.Double))
+                               (or (= el-type java.lang.Long)
+                                   (= el-type java.lang.Double))) java.lang.Double
+                          (nil? guess) el-type)]
       (if next-guess
         next-guess
         (throw (Exception. "Invalid type mix.")))))
     nil
     arr))
-     
-(defn type-convert
-  "Returns a type conversion function for the given Java type."
-  [type]
-  (cond
-    (= type java.lang.Double) double
-    (= type java.lang.Long) long
-    (= type java.lang.Boolean) boolean
-    (= type java.lang.String) str))
      
 (defn- seq-to-array
   "Converts a sequence into a Java array of an appropriate type for storage."
