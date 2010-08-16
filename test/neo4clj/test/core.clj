@@ -220,9 +220,42 @@
       (best-array-type [true 1 2])
       (best-array-type ["one" 6])))
   
-  (let [node-one (node! {:arr [1 2 3.2]
-                         :strs '("one" "two" "three")})]
-    (are [x y] (= x y)
-      [1 2 3.2] (@node-one :arr)
-      ["one" "two" "three"] (@node-one :strs)
-      java.lang.Double (type (first (@node-one :arr))))))
+  (testing "Value type preservance"  
+    (let [node-one (node! {:doubles [1 2 3.2]
+                           :strings '("one" "two" "three")
+                           :bools [false true true]
+                           :longs [56 1 34]})]
+      (are [x y] (= x y)
+        [1 2 3.2] (@node-one :doubles)
+        ["one" "two" "three"] (@node-one :strings)
+        [false true true] (@node-one :bools)
+        [56 1 34] (@node-one :longs)
+      
+        java.lang.Double (type (first (@node-one :doubles)))
+        java.lang.Long (type (first (@node-one :longs)))
+        java.lang.Boolean (type (first (@node-one :bools))))
+    
+    (delete! node-one)))
+        
+  (testing "Array property indexing"
+    (register-indices :strings :numbers)
+    (let [node-one (node! {:strings ["Elephant Herd" "Giraffe" "Zebra"]
+                           :numbers [45 9 1]})
+          node-two (node! {:numbers [5 9]})]
+      (are [x y] (= x y)
+        [node-one] (find-nodes :strings "Giraffe")
+        [node-one] (find-nodes :strings "Zebra")
+        [node-one] (find-nodes :strings "Elephant")
+        [node-one] (find-nodes :numbers 45)
+        [node-one] (find-nodes :numbers 1)
+        [node-two] (find-nodes :numbers 5)
+        [node-one node-two] (find-nodes :numbers 9))
+        
+      (alter! node-one #(update-in % [:numbers] pop))
+      (alter! node-two #(update-in % [:numbers] conj 1))
+        
+      (are [x y] (= x y)
+        [node-two] (find-nodes :numbers 1))
+        
+      (delete! node-one)
+      (delete! node-two))))
