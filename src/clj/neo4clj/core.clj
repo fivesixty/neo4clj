@@ -43,13 +43,15 @@
 (deftype Neo-Node [^Node element])     
 (deftype Neo-Relationship [^Relationship element])
 (deftype Neo-RelationshipType [n]
-RelationshipType
-  (name [_] (name n)))
+  RelationshipType
+    (name [_] (name n)))
      
 ; Neo Database
         
 (def ^EmbeddedGraphDatabase *neo* nil)
 (def ^LuceneFulltextIndexService *lucene* nil)
+(def ^Transaction *tx* nil)
+
 (def *named-relations* {})
 (def *classes* {})
 (def *indices* #{})
@@ -67,7 +69,6 @@ RelationshipType
 (defn stop
   "Stop the running neo4j instance and unbind *neo*"
   []
-  
   (do
     (.shutdown *neo*)
     (.shutdown *lucene*)
@@ -78,7 +79,6 @@ RelationshipType
   "Wrap body inside a neo-start, neo-stop
   Useful for test harness."
   [path & body]
-  
   `(do
     (start ~path)
     (try
@@ -87,8 +87,6 @@ RelationshipType
         (stop)))))
      
 ; Transactions
-     
-(def ^Transaction *tx* nil)
 
 (defn success []
   (.success *tx*))
@@ -268,7 +266,6 @@ RelationshipType
 ; Node
 
 (deftype Neo-Node [^Node element]
-
   Object
     (equals [_ other]
       (= element (.element ^Neo-Node other)))
@@ -303,7 +300,6 @@ RelationshipType
 ; Relationship
 
 (deftype Neo-Relationship [^Relationship element]
-
   Object
     (equals [_ other]
       (= element (.element ^Neo-Node other)))
