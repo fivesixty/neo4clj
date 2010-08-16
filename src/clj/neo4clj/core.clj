@@ -131,7 +131,8 @@
     (= type java.lang.Double)  double))
      
 (defn array-storage-type
-  "Accepts a sequence and returns a Java type for that sequence, or otherwise throws an exception if a valid type cannot be found."
+  "Accepts a sequence and returns a Java type for that sequence, or otherwise
+  throws an exception if a valid type cannot be found."
   [arr]
   (reduce
     (fn [guess el]
@@ -186,7 +187,8 @@
       (accept [_ item] (f item))))
       
 (defn pruner
-  "Returns a PruneEvaluator wrapping of f for use with TraversalDescription.prune"
+  "Returns a PruneEvaluator wrapping of f for use with
+  TraversalDescription.prune"
   [f]
   (reify
     PruneEvaluator
@@ -206,7 +208,8 @@
   (.prune traversal (pruner f)))
   
 (defn all-but-start
-  "Preset call for where, which filters out the start node from a traversals results."
+  "Preset call for where, which filters out the start node from a traversals
+  results."
   [^TraversalDescription traversal]
   (where #(not= (.startNode %) (.endNode %)) traversal))
   
@@ -222,9 +225,9 @@
     (partition 2 relations)))
     
 (defn along
-  "Adds valid relationships to be followed in the traversal.
-  Is in addition to any previous valid relationships added.
-  If none are set, then all relationships are valid."
+  "Adds valid relationships to be followed in the traversal. Is in addition to
+  any previous valid relationships added. If none are set, then all
+  relationships are valid."
   [type direction ^TraversalDescription traversal]
   (.relationships traversal (Neo-RelationshipType. type) direction))
 
@@ -253,7 +256,8 @@
        (all-but-start)))
       
 (defn related-via-label
-  "Returns the neighbour nodes of a node along a given relationship type and direction."
+  "Returns the neighbour nodes of a node along a given relationship type and
+  direction."
   [node type direction]
   (->> single-level-traverse
        (along type direction)
@@ -280,7 +284,8 @@
     (relate! [this type to] (relate! this type to {}))
     (relate! [_ type to properties]
       (Neo-Relationship. (do-tx
-        (let [relation (.createRelationshipTo element (.element ^Neo-Node to) (Neo-RelationshipType. type))]
+        (let [relation (.createRelationshipTo element
+                         (.element ^Neo-Node to) (Neo-RelationshipType. type))]
           (setProperties! relation properties)))))
     (related [this type]
       (related-via-label this type Direction/BOTH))
@@ -289,8 +294,8 @@
       
   clojure.lang.IFn
     (invoke [this type]
-      (if (contains? *named-relations* type)
-        (related this ((*named-relations* type) :type) ((*named-relations* type) :direction))
+      (if-let [rel-type (*named-relations* type)]
+        (related this (rel-type :type) (rel-type :direction))
         (related this type both))))
     
 ; Relationship
@@ -338,9 +343,11 @@
   (let [removed-nodes (into {} (map (fn [^Node node] [node {}]) deleted-nodes))]
     (reduce
       (fn [props ^PropertyEntry removal]
-        (update-in props [(.entity removal)] assoc (.key removal) (.previouslyCommitedValue removal)))
+        (update-in props [(.entity removal)]
+          assoc (.key removal) (.previouslyCommitedValue removal)))
       removed-nodes
-      (filter #(contains? removed-nodes (.entity ^PropertyEntry %)) removed-properties))))
+      (filter #(contains? removed-nodes (.entity ^PropertyEntry %))
+        removed-properties))))
 
 (defn- entity-class [^Node entity]
   (if (.hasProperty entity "__CLASS") (.getProperty entity "__CLASS")))
@@ -356,14 +363,17 @@
   (and class (contains? (*classes* class) key)))
 
 (defn- index-handler [^TransactionData data]
-  (let [removed-nodes (deleted-node-classes (.deletedNodes data) (.removedNodeProperties data))]
+  (let [removed-nodes (deleted-node-classes (.deletedNodes data)
+                        (.removedNodeProperties data))]
     (doseq [^PropertyEntry removal (.removedNodeProperties data)]
       (let [entity ^Node (.entity removal)
             key (.key removal)
-            class (if (removed-nodes entity) ((removed-nodes entity) "__CLASS") (entity-class entity))]
+            class (if (removed-nodes entity) 
+                    ((removed-nodes entity) "__CLASS")
+                    (entity-class entity))]
         (cond
           (contains? *indices* key) (remove-index entity key)
-          (class-index? class key)  (remove-index entity (str class "__" key)))))
+          (class-index? class key) (remove-index entity (str class "__" key)))))
     (doseq [^PropertyEntry assign (.assignedNodeProperties data)]
       (let [entity ^Node (.entity assign)
             key (.key assign)
@@ -372,8 +382,10 @@
             value (.value assign)
             previous-value (.previouslyCommitedValue assign)]
         (cond
-          (contains? *indices* key) (update-index entity key value previous-value))
-          (class-index? class key)  (update-index entity class-key value previous-value)))))
+          (contains? *indices* key)
+            (update-index entity key value previous-value))
+          (class-index? class key)
+            (update-index entity class-key value previous-value)))))
 
 (defn- attach-index-handler []
   (transaction-handler
@@ -396,15 +408,19 @@
 ; Named Relationships
 
 (defn register-relations
-  "Register named relations. Should be in format [:outgoing :incoming] or [:both] for names."
+  "Register named relations.
+  
+  Should be in format [:outgoing :incoming] or [:both] for names."
   [& relations]
   (alter-var-root #'*named-relations*
     (fn [named-relations]
       (reduce
         (fn [relations [outgoing incoming]]
           (if incoming
-            (merge relations {outgoing {:direction Direction/OUTGOING :type outgoing}
-                              incoming {:direction Direction/INCOMING :type outgoing}})
+            (merge relations {outgoing {:direction Direction/OUTGOING
+                                        :type outgoing}
+                              incoming {:direction Direction/INCOMING
+                                        :type outgoing}})
             relations))
         named-relations
         relations))))
@@ -412,7 +428,8 @@
 ; Search
 
 (defn find-nodes
-  "Find nodes using specified index and search string, optionally with a class restriction."
+  "Find nodes using specified index and search string, optionally with a class
+  restriction."
   ([index search]
     (or
       (map #(Neo-Node. %) (seq (.getNodes *lucene* (name index) search)))
@@ -423,8 +440,9 @@
 ; Constructor
     
 (defn ^Neo-Node node!
-  "Create a new node with the given map of properties, or blank if none provided.
-  If a class is provided, then this is added to the properties as a __CLASS property."
+  "Create a new node with the given map of properties, or blank if none
+  provided. If a class is provided, then this is added to the properties as a
+  __CLASS property."
   ([] (node! {}))
   ([class properties]
     (node! (merge properties {:__CLASS (name class)})))

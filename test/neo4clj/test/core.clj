@@ -21,8 +21,10 @@
   (let [first-node (node! {:message "FirstNode"})
         second-node (node! {:message "SecondNode"})
         third-node (node! {:message "ThirdNode"})
-        relation (relate! first-node :knows second-node {:message "ARelation"})
-        relation-two (relate! second-node :knows third-node {:message "AnotherRelation"})]
+        relation (relate! first-node :knows second-node
+                   {:message "ARelation"})
+        relation-two (relate! second-node :knows third-node
+                       {:message "AnotherRelation"})]
         
     (testing "Properties, dereferencing"
       (are [x y] (= x y)
@@ -32,28 +34,27 @@
                                          
     (testing "Traversal"
       (are [x y] (= x y)
-        (list second-node)  (related first-node :knows)
-        '()                 (related first-node :some-label)
-        '()                 (related first-node :knows incoming)
-        (list second-node)  (related first-node :knows outgoing)
-        (list first-node)   (related second-node :knows incoming)
-        (list first-node third-node) (related second-node :knows)
-        (list second-node)  (related third-node :knows)))
+        [second-node] (related first-node :knows)
+        [] (related first-node :some-label)
+        [] (related first-node :knows incoming)
+        [second-node] (related first-node :knows outgoing)
+        [first-node] (related second-node :knows incoming)
+        [first-node third-node] (related second-node :knows)
+        [second-node] (related third-node :knows)))
                        
     (testing "Searching"
       (let [search (find-nodes :message "FirstNode")]
         (are [x y] (= x y)
-          1 (count search)
-          (list first-node) search
-          '() (find-nodes :message "ARelation")
-          '() (find-nodes :not-an-index "FirstNode"))))
+          [first-node] search
+          [] (find-nodes :message "ARelation")
+          [] (find-nodes :not-an-index "FirstNode"))))
           
     (testing "Altered Properties, Indices"
       (alter! first-node #(assoc % :message "NewFirstNode"))
       (are [x y] (= x y)
         "NewFirstNode" (:message @first-node)
-        '() (find-nodes :message "FirstNode")
-        (list first-node) (find-nodes :message "NewFirstNode")))
+        [] (find-nodes :message "FirstNode")
+        [first-node] (find-nodes :message "NewFirstNode")))
           
     (testing "Invalid Transactions"
       (are [x] (thrown? Exception x)
@@ -93,13 +94,14 @@
       
     
     (testing "Deleting Indices"
-      (delete! chris-node)
-      (is (= [] (find-nodes :Person :name "Chris")))
-      (is (= [jim-node] (find-nodes :Person :age 21)))
-      (delete! jim-node)
-      (is (= [] (find-nodes :Person :age 21)))
-      (delete! domino-node)
-      (is (= [] (find-nodes :Animal :name "Domino"))))))
+      (are [x y] (= x y)
+        nil (delete! chris-node)
+        [] (find-nodes :Person :name "Chris")
+        [jim-node] (find-nodes :Person :age 21)
+        nil (delete! jim-node)
+        [] (find-nodes :Person :age 21)
+        nil (delete! domino-node)
+        [] (find-nodes :Animal :name "Domino")))))
       
 (deftest Traversals
 
