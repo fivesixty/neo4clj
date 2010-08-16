@@ -20,6 +20,32 @@
      (org.neo4j.index.lucene LuceneFulltextIndexService)
      (org.neo4j.helpers Predicate)))
      
+; Protocols
+
+(defprotocol PElement
+  (alter! [this f])
+  (delete-aux! [this]))
+
+(defprotocol PNode
+  (relate! [this type to] [_ type to properties])
+  (related [this type] [this type direction]))
+
+(defprotocol PRelationship
+  (start-node [this])
+  (end-node [this]))
+
+(defprotocol PropertyWrap
+  (setProperties! [this properties])
+  (getProperties [this]))
+  
+; Types
+
+(deftype Neo-Node [^Node element])     
+(deftype Neo-Relationship [^Relationship element])
+(deftype Neo-RelationshipType [n]
+RelationshipType
+  (name [_] (name n)))
+     
 ; Neo Database
         
 (def ^EmbeddedGraphDatabase *neo* nil)
@@ -83,31 +109,7 @@
       (finally
         (finish))))))
      
-; Protocols
-     
-(defprotocol PElement
-  (alter! [this f])
-  (delete-aux! [this]))
-     
-(defprotocol PNode
-  (relate! [this type to] [_ type to properties])
-  (related [this type] [this type direction]))
-  
-(defprotocol PRelationship
-  (start-node [this])
-  (end-node [this]))
-     
-(defprotocol PropertyWrap
-  (setProperties! [this properties])
-  (getProperties [this]))
-     
-; Types
-
-(deftype Neo-Node [^Node element])     
-(deftype Neo-Relationship [^Relationship element])
-(deftype Neo-RelationshipType [n]
-  RelationshipType
-    (name [_] (name n)))
+; PropertyContainer extensions.
      
 (defn boolean? [o]
   (= java.lang.Boolean (type o)))
@@ -262,24 +264,24 @@
   (->> single-level-traverse
        (along type direction)
        (get-nodes-from node)))
-     
+    
 ; Node
-     
+
 (deftype Neo-Node [^Node element]
-  
+
   Object
     (equals [_ other]
       (= element (.element ^Neo-Node other)))
-  
+
   clojure.lang.IDeref
     (deref [_] (getProperties element))
-    
+
   PElement
     (alter! [_ f]
       (do-tx
         (setProperties! element (f (getProperties element)))))
     (delete-aux! [this] (.delete element))
-  
+
   PNode
     (relate! [this type to] (relate! this type to {}))
     (relate! [_ type to properties]
@@ -291,51 +293,35 @@
       (related-via-label this type Direction/BOTH))
     (related [this type direction]
       (related-via-label this type direction))
-      
+
   clojure.lang.IFn
     (invoke [this type]
       (if-let [rel-type (*named-relations* type)]
         (related this (rel-type :type) (rel-type :direction))
         (related this type both))))
-    
+
 ; Relationship
-    
+
 (deftype Neo-Relationship [^Relationship element]
-  
+
   Object
     (equals [_ other]
       (= element (.element ^Neo-Node other)))
-      
+
   clojure.lang.IDeref
     (deref [_] (getProperties element))
-    
+
   PElement
     (alter! [_ f]
       (do-tx
         (setProperties! element (f (getProperties element)))))
     (delete-aux! [this] (.delete element))
-    
+
   PRelationship
     (start-node [_] (Neo-Node. (.getStartNode element)))
     (end-node [_] (Neo-Node. (.getEndNode element))))
-      
-        
-(defn delete!
-  "Deletes elements arguments which are Nodes or Relationships."
-  [& elements]
-  (do-tx
-    (doseq [element elements]
-      (delete-aux! element))))
     
 ; Events/Indexing
-      
-(defn register-indices
-  "Adds indices to the defined indices to keep.
-  
-  Example:
-    (register-indices :index :names)"
-  [& indices]
-  (alter-var-root #'*indices* #(into % (map name indices))))
     
 (defn- deleted-node-classes [deleted-nodes removed-properties]
   (let [removed-nodes (into {} (map (fn [^Node node] [node {}]) deleted-nodes))]
@@ -388,6 +374,14 @@
       (afterCommit [_ data state] nil)
       (beforeCommit [_ data] (index-handler data))
       (afterRollback [_ data state] nil))))
+
+(defn register-indices
+  "Adds indices to the defined indices to keep.
+  
+  Example:
+    (register-indices :index :names)"
+  [& indices]
+  (alter-var-root #'*indices* #(into % (map name indices))))
 
 (defn register-classes
   "Registers body as classes and indices.
@@ -455,3 +449,10 @@
       (setProperties!
         (.createNode *neo*)
         properties)))))
+        
+(defn delete!
+  "Deletes elements arguments which are Nodes or Relationships."
+  [& elements]
+  (do-tx
+    (doseq [element elements]
+      (delete-aux! element))))
