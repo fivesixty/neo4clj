@@ -270,6 +270,12 @@
   
   clojure.lang.IDeref
     (deref [_] (getProperties element))
+    
+  PElement
+    (alter! [_ f]
+      (do-tx
+        (setProperties! element (f (getProperties element)))))
+    (delete-aux! [this] (.delete element))
   
   PNode
     (relate! [this type to] (relate! this type to {}))
@@ -282,12 +288,6 @@
     (related [this type direction]
       (related-via-label this type direction))
       
-  PElement
-    (alter! [_ f]
-      (do-tx
-        (setProperties! element (f (getProperties element)))))
-    (delete-aux! [this] (.delete element))
-      
   clojure.lang.IFn
     (invoke [this type]
       (if (contains? *named-relations* type)
@@ -298,19 +298,23 @@
     
 (deftype Neo-Relationship [^Relationship element]
   
+  Object
+    (equals [_ other]
+      (= element (.element ^Neo-Node other)))
+      
   clojure.lang.IDeref
     (deref [_] (getProperties element))
-    
-  PRelationship
-    (start-node [_] (Neo-Node. (.getStartNode element)))
-    (end-node [_] (Neo-Node. (.getEndNode element)))
     
   PElement
     (alter! [_ f]
       (do-tx
         (setProperties! element (f (getProperties element)))))
-    (delete-aux! [this] (.delete element)))
-        
+    (delete-aux! [this] (.delete element))
+    
+  PRelationship
+    (start-node [_] (Neo-Node. (.getStartNode element)))
+    (end-node [_] (Neo-Node. (.getEndNode element))))
+      
         
 (defn delete! [& elements]
   (do-tx
