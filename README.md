@@ -5,8 +5,6 @@ Comprehensive bindings and utilities for using Neo4j from Clojure.
 ## Known issues
 
 * Fix reflection issues with prune and where predicates.
-* Undefined index behaviour on array properties.
-* Array properties only stored as either double or string.
 
 ## Still to come
 
@@ -19,7 +17,7 @@ Comprehensive bindings and utilities for using Neo4j from Clojure.
 
 ## Installation
 
-Still under rapid development, so has not been added to clojars just yet.
+Still under rapid development, so has not been added to Clojars just yet.
 
 ## Nodes and index
 
@@ -124,7 +122,7 @@ Syntax for custom where and prune predicates currently depends on knowledge of t
         
 ## Named Relations
 
-Named relations allow reverse relations to be named, and shortcut syntax to be used. When creating relations, the outgoing relation name should be used (in this example, :knows). Modifying relations like sequences is planned for the future, eg. `(conj! (node :knows) new-node)`
+Named relations allow reverse relations to be named, and shortcut syntax to be used. When creating relations, the outgoing relation name should be used (in this example, :knows). Modifying relations like sequences is planned for the future, e.g. `(conj! (node :knows) new-node)`
 
     (register-relations
       [:friends]          ; Ignored internally, but allowed for clarity. 
@@ -148,13 +146,18 @@ Named relations allow reverse relations to be named, and shortcut syntax to be u
     
 ## Array Properties
 
-Basic support for array properties is provided, no support for indices.
+Array properties of homogenous types are supported. The provided sequence is assessed for which type can be used. An array of integers will be stored as Longs, and array of floats, ratios or decimals will be stored as Doubles. Integers mixed in a sequence with floats will be stored as Doubles. A bad type mix will throw an exception. It errs on strict preserving, i.e. a string and a number in a sequence will be considered invalid.
 
+Indexes work the same as on other fields.
+
+    (register-indices :strs)
+    
     (let [node-one (node! {:arr [1 2 3]
                            :strs '("one" "two" "three")})]
       (are [x y] (= x y)
         [1 2 3] (@node-one :arr)
-        ["one" "two" "three"] (@node-one :strs)))
+        ["one" "two" "three"] (@node-one :strs)
+        [node-one] (find-nodes :strs "two")))
 
 ## License
 
