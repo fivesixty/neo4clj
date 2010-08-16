@@ -6,7 +6,11 @@
                  [org.neo4j/neo4j-index "1.1"]]
   ; :dev-dependencies [[swank-clojure "1.2.1"]]
   ; :dev-dependencies [[autodoc "0.7.1"]]
+  :dev-dependencies [[lein-javac "1.2.1-SNAPSHOT"]]
   :repositories {"neo4j-public-repository" "http://m2.neo4j.org"}
+  
+  :source-path "src/clj"
+  :java-source-path "src/jvm"
   
   :warn-on-reflection true
   :aot [neo4clj.core])
