@@ -158,7 +158,7 @@
   PropertyWrap
   (setProperties! [this properties]
     (doseq [[key value] properties]
-      (if (or (seq? value) (vector? value))
+      (if (or (seq? value) (vector? value) (set? value))
         (.setProperty this (name key) (seq-to-array value))
         (.setProperty this (name key) value)))
     this)
@@ -320,22 +320,20 @@
     (end-node [_] (Neo-Node. (.getEndNode element))))
       
         
-(defn delete! [& elements]
+(defn delete!
+  "Deletes elements arguments which are Nodes or Relationships."
+  [& elements]
   (do-tx
     (doseq [element elements]
       (delete-aux! element))))
     
 ; Events/Indexing
-  
-(defmacro transaction-handler
-  "Wrap body inside a reify for registering a TransactionEventHandler."
-  [& body]
-  `(.registerTransactionEventHandler *neo*
-    (reify TransactionEventHandler
-      ~@body)))
       
 (defn register-indices
-  "Adds indices to the defined indices to keep."
+  "Adds indices to the defined indices to keep.
+  
+  Example:
+    (register-indices :index :names)"
   [& indices]
   (alter-var-root #'*indices* #(into % (map name indices))))
     
@@ -363,39 +361,41 @@
   (and class (contains? (*classes* class) key)))
 
 (defn- index-handler [^TransactionData data]
-  (let [removed-nodes (deleted-node-classes (.deletedNodes data)
-                        (.removedNodeProperties data))]
-    (doseq [^PropertyEntry removal (.removedNodeProperties data)]
+  (let [removed-properties (.removedNodeProperties data)
+        removed-nodes (deleted-node-classes (.deletedNodes data)
+                        removed-properties)]
+    (doseq [^PropertyEntry removal removed-properties]
       (let [entity ^Node (.entity removal)
             key (.key removal)
-            class (if (removed-nodes entity) 
-                    ((removed-nodes entity) "__CLASS")
+            class (if-let [removed-node (removed-nodes entity)]
+                    (removed-node "__CLASS")
                     (entity-class entity))]
-        (cond
-          (contains? *indices* key) (remove-index entity key)
-          (class-index? class key) (remove-index entity (str class "__" key)))))
+        (when-let [key (cond (contains? *indices* key) key
+                         (class-index? class key) (str class "__" key))]
+          (remove-index entity key))))
     (doseq [^PropertyEntry assign (.assignedNodeProperties data)]
       (let [entity ^Node (.entity assign)
             key (.key assign)
-            class (entity-class entity)
-            class-key (str class "__" key)
-            value (.value assign)
-            previous-value (.previouslyCommitedValue assign)]
-        (cond
-          (contains? *indices* key)
-            (update-index entity key value previous-value))
-          (class-index? class key)
-            (update-index entity class-key value previous-value)))))
+            class (entity-class entity)]
+        (when-let [key (cond (contains? *indices* key) key
+                         (class-index? class key) (str class "__" key))]
+          (update-index entity key (.value assign)
+            (.previouslyCommitedValue assign)))))))
 
 (defn- attach-index-handler []
-  (transaction-handler
-    (afterCommit [_ data state] nil)
-    (beforeCommit [_ data] (index-handler data))
-    (afterRollback [_ data state] nil)))
+  (.registerTransactionEventHandler *neo*
+    (reify TransactionEventHandler
+      (afterCommit [_ data state] nil)
+      (beforeCommit [_ data] (index-handler data))
+      (afterRollback [_ data state] nil))))
 
 (defn register-classes
   "Registers body as classes and indices.
-  body should be in format :Class [:index :names]"
+  
+  Example:
+    (register-classes
+      :Class [:index :names]
+      :Node [:index])"
   [& body]
   (alter-var-root #'*classes*
     #(reduce
@@ -408,19 +408,23 @@
 ; Named Relationships
 
 (defn register-relations
-  "Register named relations.
+  "Register named relations. Should be in format [:outgoing :incoming] or
+  [:both] for names.
   
-  Should be in format [:outgoing :incoming] or [:both] for names."
+  Example:
+    (register-relations
+      [:outgoing :incoming]
+      [:knows :known-by]
+      [:friends])"
   [& relations]
   (alter-var-root #'*named-relations*
     (fn [named-relations]
       (reduce
         (fn [relations [outgoing incoming]]
           (if incoming
-            (merge relations {outgoing {:direction Direction/OUTGOING
-                                        :type outgoing}
-                              incoming {:direction Direction/INCOMING
-                                        :type outgoing}})
+            (merge relations
+              { outgoing {:direction Direction/OUTGOING :type outgoing}
+                incoming {:direction Direction/INCOMING :type outgoing} })
             relations))
         named-relations
         relations))))
