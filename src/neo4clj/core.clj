@@ -71,7 +71,9 @@
 (defn finish []
   (.finish *tx*))
   
-(defmacro do-tx [& body]
+(defmacro do-tx
+  "Wraps the contents inside a transaction and implicit do."
+  [& body]
   `(if *tx* (do ~@body)
     (binding [*tx* (.beginTx *neo*)]
     (try
@@ -107,7 +109,9 @@
   RelationshipType
     (name [_] (name n)))
      
-(defn best-array-type [arr]
+(defn best-array-type
+  "Accepts a sequence and returns a Java type for that sequence, or otherwise throws an exception if a valid type cannot be found."
+  [arr]
   (reduce
     (fn [guess el]
       (let [next-guess
@@ -135,14 +139,18 @@
     nil
     arr))
      
-(defn type-convert [type]
+(defn type-convert
+  "Returns a type conversion function for the given Java type."
+  [type]
   (cond
     (= type java.lang.Double) double
     (= type java.lang.Long) long
     (= type java.lang.Boolean) boolean
     (= type java.lang.String) str))
      
-(defn- seq-to-array [sequence]
+(defn- seq-to-array
+  "Converts a sequence into a Java array of an appropriate type for storage."
+  [sequence]
   (let [arr-type (best-array-type sequence)]
     (into-array arr-type (map (type-convert arr-type) sequence))))
      
@@ -171,26 +179,41 @@
 (def incoming Direction/INCOMING)
 (def outgoing Direction/OUTGOING)
   
-(defn predicate [f]
+(defn predicate
+  "Returns a Predicate wrapping of f for use with TraversalDescription.filter"
+  [f]
   (reify
     Predicate
       (accept [_ item] (f item))))
       
-(defn pruner [f]
+(defn pruner
+  "Returns a PruneEvaluator wrapping of f for use with TraversalDescription.prune"
+  [f]
   (reify
     PruneEvaluator
       (^boolean pruneAfter [_ ^Path path] (f path))))
   
-(defn where [f ^TraversalDescription traversal]
+(defn where
+  "Adds a filter function f onto the traversal and returns the new traversal.
+  Only one filter may be used, and a previous filter will be replaced."
+  [f ^TraversalDescription traversal]
   (.filter traversal (predicate f)))
   
-(defn prune [f ^TraversalDescription traversal]
+(defn prune
+  "Adds a prune function f onto the traversal and returns the new traversal.
+  The prune filter should return true when traversal should stop. Note that
+  the traversal *will* return the node at which the traversal was stopped."
+  [f ^TraversalDescription traversal]
   (.prune traversal (pruner f)))
   
-(defn all-but-start [^TraversalDescription traversal]
+(defn all-but-start
+  "Preset call for where, which filters out the start node from a traversals results."
+  [^TraversalDescription traversal]
   (where #(not= (.startNode %) (.endNode %)) traversal))
   
-(defn get-nodes-from [^Neo-Node node ^TraversalDescription traversal]
+(defn get-nodes-from
+  "Executes a given traversal and returns the nodes as a result."
+  [^Neo-Node node ^TraversalDescription traversal]
   (map #(Neo-Node. %) (.nodes (.traverse traversal (.element node)))))
   
 (defn along-mult [traversal & relations]
@@ -199,17 +222,29 @@
     traversal
     (partition 2 relations)))
     
-(defn along [type direction ^TraversalDescription traversal]
+(defn along
+  "Adds valid relationships to be followed in the traversal.
+  Is in addition to any previous valid relationships added.
+  If none are set, then all relationships are valid."
+  [type direction ^TraversalDescription traversal]
   (.relationships traversal (Neo-RelationshipType. type) direction))
 
-(defn ^TraversalDescription max-depth [n ^TraversalDescription traversal]
+(defn ^TraversalDescription max-depth
+  "Preset prune where traversal stops at the given depth."
+  [n ^TraversalDescription traversal]
   (prune #(= (.length %) n) traversal))
-(defn ^TraversalDescription depth-first [^TraversalDescription traversal]
+(defn ^TraversalDescription depth-first
+  "Set the traversal to use depth first search."
+  [^TraversalDescription traversal]
   (.depthFirst traversal))
-(defn ^TraversalDescription breadth-first [^TraversalDescription traversal]
+(defn ^TraversalDescription breadth-first
+  "Set the traversal to use breadth first search."
+  [^TraversalDescription traversal]
   (.breadthFirst traversal))
 
-(defn new-traversal []
+(defn new-traversal
+  "Returns a new traversal."
+  []
   (Traversal/description))
     
 (def single-level-traverse
@@ -218,7 +253,9 @@
        (max-depth 1)
        (all-but-start)))
       
-(defn related-via-label [node type direction]
+(defn related-via-label
+  "Returns the neighbour nodes of a node along a given relationship type and direction."
+  [node type direction]
   (->> single-level-traverse
        (along type direction)
        (get-nodes-from node)))
@@ -278,13 +315,17 @@
     
 ; Events/Indexing
   
-(defmacro transaction-handler [& body]
+(defmacro transaction-handler
+  "Wrap body inside a reify for registering a TransactionEventHandler."
+  [& body]
   `(.registerTransactionEventHandler *neo*
     (reify TransactionEventHandler
       ~@body)))
       
-(defn register-indices [& args]
-  (alter-var-root #'*indices* #(into % (map name args))))
+(defn register-indices
+  "Adds indices to the defined indices to keep."
+  [& indices]
+  (alter-var-root #'*indices* #(into % (map name indices))))
     
 (defn- deleted-node-classes [deleted-nodes removed-properties]
   (let [removed-nodes (into {} (map (fn [^Node node] [node {}]) deleted-nodes))]
@@ -333,7 +374,10 @@
     (beforeCommit [_ data] (index-handler data))
     (afterRollback [_ data state] nil)))
 
-(defn register-classes [& body]
+(defn register-classes
+  "Registers body as classes and indices.
+  body should be in format :Class [:index :names]"
+  [& body]
   (alter-var-root #'*classes*
     #(reduce
       (fn [classes [class-name indices]]
@@ -344,7 +388,9 @@
     
 ; Named Relationships
 
-(defn register-relations [& relations]
+(defn register-relations
+  "Register named relations. Should be in format [:outgoing :incoming] or [:both] for names."
+  [& relations]
   (alter-var-root #'*named-relations*
     (fn [named-relations]
       (reduce
@@ -359,6 +405,7 @@
 ; Search
 
 (defn find-nodes
+  "Find nodes using specified index and search string, optionally with a class restriction."
   ([index search]
     (or
       (map #(Neo-Node. %) (seq (.getNodes *lucene* (name index) search)))
@@ -369,6 +416,8 @@
 ; Constructor
     
 (defn ^Neo-Node node!
+  "Create a new node with the given map of properties, or blank if none provided.
+  If a class is provided, then this is added to the properties as a __CLASS property."
   ([] (node! {}))
   ([class properties]
     (node! (merge properties {:__CLASS (name class)})))
