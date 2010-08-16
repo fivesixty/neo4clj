@@ -61,15 +61,11 @@
         (do-tx (failure))))
       
     (testing "Deletion"
-      (do-tx
-        (delete! relation)
-        (delete! relation-two)
-        (delete! first-node))
+      (delete! relation relation-two first-node)
       (is (thrown? Exception @first-node))
       (is (thrown? Exception @relation))
       (is @second-node)
-      (delete! second-node)
-      (delete! third-node)
+      (delete! second-node third-node)
       (is (thrown? Exception @second-node)))))
       
 (deftest Heterogeneous-Nodes
@@ -137,7 +133,7 @@
         6  0 (->> (new-traversal)
                   (max-depth 5))
         6  0 (->> (new-traversal)
-                  (prune (fn [path] (= (.length path) 5))))
+                  (prune #(= (.length %) 5)))
                   
         1  0 single-level-traverse
         2  1 single-level-traverse
@@ -163,8 +159,8 @@
                   (along :alt outgoing)
                   (along :to outgoing)))
         
-      (doall (map delete! relations))
-      (doall (map delete! nodes)))))
+      (apply delete! relations)
+      (apply delete! nodes))))
       
 (deftest Concurrency
   (let [node-one (node! {:count 0})
@@ -208,7 +204,6 @@
         
         
 (deftest Array-Properties
-  
   (testing "Array type detection"
     (are [x y] (= x y)
       java.lang.Long (best-array-type [1 2 3])
@@ -240,7 +235,7 @@
   (testing "Array property indexing"
     (register-indices :strings :numbers)
     (let [node-one (node! {:strings ["Elephant Herd" "Giraffe" "Zebra"]
-                           :numbers [45 9 1]})
+                           :numbers [45 45 9 1]})
           node-two (node! {:numbers [5 9]})]
       (are [x y] (= x y)
         [node-one] (find-nodes :strings "Giraffe")
@@ -257,5 +252,4 @@
       (are [x y] (= x y)
         [node-two] (find-nodes :numbers 1))
         
-      (delete! node-one)
-      (delete! node-two))))
+      (delete! node-one node-two))))

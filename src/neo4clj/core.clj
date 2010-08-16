@@ -28,7 +28,7 @@
 (def *classes* {})
 (def *indices* #{})
 
-(defn- attach-index-handler [])
+(declare attach-index-handler)
 
 (defn start
   "Start a neo4j instance from the given database path, and bind to *neo*"
@@ -87,7 +87,7 @@
      
 (defprotocol PElement
   (alter! [this f])
-  (delete! [this]))
+  (delete-aux! [this]))
      
 (defprotocol PNode
   (relate! [this type to] [_ type to properties])
@@ -286,8 +286,7 @@
     (alter! [_ f]
       (do-tx
         (setProperties! element (f (getProperties element)))))
-    (delete! [_]
-      (do-tx (.delete element)))
+    (delete-aux! [this] (.delete element))
       
   clojure.lang.IFn
     (invoke [this type]
@@ -310,8 +309,13 @@
     (alter! [_ f]
       (do-tx
         (setProperties! element (f (getProperties element)))))
-    (delete! [_]
-      (do-tx (.delete element))))
+    (delete-aux! [this] (.delete element)))
+        
+        
+(defn delete! [& elements]
+  (do-tx
+    (doseq [element elements]
+      (delete-aux! element))))
     
 ; Events/Indexing
   

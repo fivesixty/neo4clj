@@ -52,8 +52,7 @@ Database can be started/stopped using `(start [path]) (stop)`, or using `(with-n
         (count (related node-two :knows incoming))      ; 0
         (println "since" (@rel-two :since))             ; "since 2010"
         
-        (delete! rel-one) (delete! rel-two)     ; Relationships deleted before nodes.
-        (delete! node-one) (delete! node-two)))
+        (delete! rel-one rel-two node-one node-two)))
         
 ## Transactions
 
@@ -90,8 +89,7 @@ Included is basic support for classed nodes and indexes, whereby the Class of a 
         (= chris  (first (find-nodes :Person :name "Domino")))
         (= 1      (count (find-nodes :Person :name "Domino")))
         
-        (delete! chris)
-        (delete! domino)))
+        (delete! chris domino)))
         
 ## Traversals
 
