@@ -206,14 +206,14 @@
 (deftest Array-Properties
   (testing "Array type detection"
     (are [x y] (= x y)
-      java.lang.Long (best-array-type [1 2 3])
-      java.lang.Double (best-array-type [1.2 3])
-      java.lang.Boolean (best-array-type [false true false])
-      java.lang.String (best-array-type ["one" "two"]))
+      java.lang.Long (array-storage-type [1 2 3])
+      java.lang.Double (array-storage-type [1.2 3])
+      java.lang.Boolean (array-storage-type [false true false])
+      java.lang.String (array-storage-type ["one" "two"]))
       
     (are [x] (thrown? Exception x)
-      (best-array-type [true 1 2])
-      (best-array-type ["one" 6])))
+      (array-storage-type [true 1 2])
+      (array-storage-type ["one" 6])))
   
   (testing "Value type preservance"  
     (let [node-one (node! {:doubles [1 2 3.2]

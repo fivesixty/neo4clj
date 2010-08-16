@@ -112,7 +112,7 @@
 (defn boolean? [o]
   (= java.lang.Boolean (type o)))
      
-(defn- best-object-type
+(defn- object-storage-type
   "Returns best object type for storage of given object, or nil if invalid."
   [o]
   (cond
@@ -130,29 +130,27 @@
     (= type java.lang.Long)    long
     (= type java.lang.Double)  double))
      
-(defn best-array-type
+(defn array-storage-type
   "Accepts a sequence and returns a Java type for that sequence, or otherwise throws an exception if a valid type cannot be found."
   [arr]
   (reduce
     (fn [guess el]
-      (let [el-type (best-object-type el)
-            next-guess  (cond
-                          (= guess el-type) guess
-                          (and (or (= guess java.lang.Long)
-                                   (= guess java.lang.Double))
-                               (or (= el-type java.lang.Long)
-                                   (= el-type java.lang.Double))) java.lang.Double
-                          (nil? guess) el-type)]
-      (if next-guess
-        next-guess
-        (throw (Exception. "Invalid type mix.")))))
+      (let [el-type (object-storage-type el)]
+        (cond
+          (= guess el-type) guess
+          (and (or (= guess java.lang.Long)
+                   (= guess java.lang.Double))
+               (or (= el-type java.lang.Long)
+                   (= el-type java.lang.Double))) java.lang.Double
+          (nil? guess) el-type
+          :default (throw (Exception. "Invalid type mix.")))))
     nil
     arr))
      
 (defn- seq-to-array
   "Converts a sequence into a Java array of an appropriate type for storage."
   [sequence]
-  (let [arr-type (best-array-type sequence)]
+  (let [arr-type (array-storage-type sequence)]
     (into-array arr-type (map (type-convert arr-type) sequence))))
      
 (extend-type PropertyContainer
